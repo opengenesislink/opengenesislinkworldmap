@@ -24,3 +24,18 @@
 .results{max-height:205px;overflow:auto}.results button{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #263c59;background:#0f2139;color:#dbecff;padding:9px 12px;font-size:12px}.results button:hover{background:#173958}.results small{display:block;margin-top:4px;color:#86a6ca}.results .noresult{color:#86a0c0;font-size:12px;padding-top:10px}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 @media(max-width:990px){.sidebar{width:280px;flex-basis:280px}.maparea{padding:20px}.maphelp{display:none}}
 @media(max-width:760px){.topbar{height:62px;padding:0 15px}.topright a{display:none}.workspace{flex-direction:column}.sidebar{width:100%;flex:auto;padding:17px;gap:13px}.sidebar h1{font-size:22px;max-width:none}.sidebar .sub,.sidefoot{display:none}.sidebar .panel.details{display:none}.maparea{min-height:65vh;padding:14px}.mapframe{min-height:470px}.legend{gap:12px}.legend .legendHint{width:100%;margin:0}}
+
+/* Supplied OpenGenesisLINK WorldMap logo – desktop, tablet and phone. */
+.topbar{height:118px;padding:7px 34px;background:linear-gradient(105deg,#091426 0%,#0e203a 52%,#0b1527 100%)}
+.brand-logo{flex:0 0 auto;display:flex;align-items:center;width:min(35vw,330px);max-height:106px;min-height:0}
+.brand-logo img{display:block;width:100%;height:auto;max-height:106px;object-fit:contain;filter:drop-shadow(0 0 10px #1361c533)}
+.brand-logo:hover img{filter:drop-shadow(0 0 16px #269aff77)}
+.workspace{min-height:calc(100vh - 118px)}
+@media(max-width:990px){.brand-logo{width:min(39vw,290px)}}
+@media(max-width:760px){
+  .topbar{height:85px;padding:5px 14px}
+  .brand-logo{width:min(54vw,228px);max-height:75px}
+  .brand-logo img{max-height:75px}
+  .topright{gap:8px;font-size:10px;text-align:right}
+  .workspace{min-height:calc(100vh - 85px)}
+}
