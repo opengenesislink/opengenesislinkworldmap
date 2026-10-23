@@ -15,12 +15,12 @@ $settings = ['centerX' => $centerX !== false ? $centerX : 5000, 'centerY' => $ce
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#071326">
 <title>OpenGenesisLINK WorldMap</title>
-<link rel="stylesheet" href="./assets/style.css">
+<link rel="stylesheet" href="./assets/style.css?v=2">
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <div class="brand"><span class="brandmark" aria-hidden="true">◆</span><span><strong>OpenGenesisLINK</strong><small>WORLDMAP <span class="muted">/ REGIONS ATLAS</span></small></span></div>
+    <a class="brand brand-logo" href="./" aria-label="OpenGenesisLINK WorldMap – Startseite"><img src="./assets/worldmap-logo.webp?v=2" alt="OpenGenesisLINK WorldMap" width="800" height="266" decoding="async"></a>
     <div class="topright"><span class="live" id="connection">Verbindung wird geprüft</span><a href="https://opengenesislink.de/de/" target="_blank" rel="noopener noreferrer">Projektwebsite ↗</a></div>
   </header>
   <main class="workspace">
@@ -38,6 +38,6 @@ $settings = ['centerX' => $centerX !== false ? $centerX : 5000, 'centerY' => $ce
   </main>
 </div>
 <script>window.OGL_WORLDMAP = <?= json_encode($settings, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_APOS) ?>;</script>
-<script src="./assets/app.js" defer></script>
+<script src="./assets/app.js?v=2" defer></script>
 </body>
 </html>
