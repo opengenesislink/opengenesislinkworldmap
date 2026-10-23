@@ -18,9 +18,13 @@ $db->exec("INSERT INTO regions VALUES
     ('two','Unused',1280256,1280256,256,256,'', '00000000-0000-0000-0000-000000000000')");
 $regions = mapFetchRegions($db, [5000,5003,5000,5003], 'meters')['regions'];
 assertOwner(count($regions) === 2, 'Two occupied regions');
-assertOwner($regions[0]['ownerName'] === 'Sleimer Akina', 'Resolve public avatar owner display name');
-assertOwner($regions[0]['ownerId'] === '0b8c88ab-d1b0-482d-b539-113c36e2ad47', 'Expose owner ID');
-assertOwner($regions[1]['ownerId'] === null && $regions[1]['ownerName'] === null, 'Handle zero owner UUID');
+$byName = [];
+foreach ($regions as $region) {
+    $byName[$region['name']] = $region;
+}
+assertOwner($byName['Magdeburg']['ownerName'] === 'Sleimer Akina', 'Resolve public avatar owner display name');
+assertOwner($byName['Magdeburg']['ownerId'] === '0b8c88ab-d1b0-482d-b539-113c36e2ad47', 'Expose owner ID');
+assertOwner($byName['Unused']['ownerId'] === null && $byName['Unused']['ownerName'] === null, 'Handle zero owner UUID');
 $searched = mapSearch($db, 'Magdeburg', 'meters');
 assertOwner($searched[0]['ownerName'] === 'Sleimer Akina', 'Owner details included in search results');
 
