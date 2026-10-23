@@ -5,7 +5,10 @@ Eigenständiger, interaktiver Regionsatlas für **OpenGenesisLINK** und **OpenSi
 ## Funktionsumfang (Generation 1, Entwicklungsbasis)
 
 - Responsives Dark-Mode-Frontend mit Canvas-Karte, Verschieben und Zoom
-- Freie und belegte Regionskoordinaten, Standardregionen und VarRegions
+- Kartendarstellung: **Rot = registrierte/belegte Region**, **Grün = freies Kartenfeld**; noch nicht oder unvollständig geprüfte Flächen bleiben dunkel
+- Klick auf jede Kartenposition öffnet ein kleines Info-Popup mit **exakten Grid-Koordinaten** (auch bei freien Feldern)
+- Belegte Regionen zeigen Name, Größe, UUID, Server sowie – falls verfügbar – den registrierten Besitzer mit öffentlichem Avatar-Namen
+- Standardregionen und VarRegions werden flächentreu dargestellt (einschließlich der zusätzlichen belegten Zellen großer Regionen)
 - Regionssuche und Details (Name, Größe, UUID, Grid-Koordinaten, Server-URI)
 - Schreibgeschützte JSON-API mit begrenzten Bounding-Box-Abfragen
 - MariaDB/MySQL, PostgreSQL oder SQLite per PDO; Datenbanktabelle `regions`
@@ -113,9 +116,21 @@ MySQL/MariaDB: Beispiel für einen beschränkten Lesebenutzer:
 ```sql
 CREATE USER 'opensim_reader'@'localhost' IDENTIFIED BY 'CHANGE_ME';
 GRANT SELECT ON opensim.regions TO 'opensim_reader'@'localhost';
+-- Optional für Avatar-Besitzernamen, nicht für die Karte selbst notwendig:
+GRANT SELECT (PrincipalID, FirstName, LastName) ON opensim.UserAccounts TO 'opensim_reader'@'localhost';
 ```
 
 Für OpenSimulator werden `locX` und `locY` üblicherweise in **Metern** gespeichert: z. B. `1280000` entspricht X `5000` auf der Karte. `sizeX` und `sizeY` enthalten die Regionsabmessungen in Metern. Die aktuelle Map rechnet die Maße in 256-m-Zellen um. Abweichende Schemas müssen vor Produktivbetrieb gegen die eigene Grid-Datenbank geprüft werden.
+
+## Farben, Klick-Infofenster und Besitzer
+
+- **Rot:** Belegte/registrierte Region laut der GridService-Tabelle `regions`. Eine VarRegion belegt entsprechend ihrer Größe mehrere 256-m-Kartenzellen.
+- **Grün:** Im vollständig abgefragten Ausschnitt nicht in `regions` registrierte Kartenzelle. Das ist **keine Buchungs- oder Mietgarantie**.
+- **Dunkel:** Keine verlässlichen Daten (noch ladend, fehlerhafte Verbindung oder gekappte API-Ausgabe mit mehr als 2000 Regionen).
+- **Klick:** Das Infofenster zeigt auch auf freien Feldern die präzisen Zellenkoordinaten. Bei belegten Regionen enthält es weitere Grid-Daten. Besitzer werden zuerst aus `regions.owner_uuid` (bzw. kompatiblen `regionOwner`-Spalten) gelesen; über `UserAccounts.PrincipalID` können `FirstName` und `LastName` aufgelöst werden.
+- Wenn die Tabelle `UserAccounts` nicht vorhanden ist oder kein SELECT-Recht besteht, funktioniert die Karte weiterhin. Es erscheint gegebenenfalls nur die Besitzer-UUID bzw. „Nicht hinterlegt“. **Estate-/Parzellenbesitzer sind andere Datensätze auf den Simulatoren**; die WorldMap zeigt derzeit ausschließlich den registrierten Grid-Regionsbesitzer.
+
+Es werden keine Passwörter, E-Mail-Adressen oder Benutzer-Authentifizierungsdaten abgefragt.
 
 ## API
 
@@ -131,6 +146,8 @@ find . -name '*.php' -print0 | xargs -0 -n1 php -l
 php tests/geometry.php
 php tests/configuration.php
 php tests/database.php
+php tests/owners.php
+node --check assets/app.js
 php -S 127.0.0.1:8080
 ```
 
