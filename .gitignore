@@ -1,4 +1,9 @@
 /config.php
+/config/worldmap-config.php
+/config/*.local.php
+/config/*.bak
+/config/*.backup
+/config/*.swp
 /.env
 /.env.*
 !/.env.example

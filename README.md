@@ -15,40 +15,48 @@ Eigenständiger, interaktiver Regionsatlas für **OpenGenesisLINK** und **OpenSi
 - Koordinatenumrechnung Meter ↔ Grid-Regionen per Einstellung
 - Automatischer PHP-Syntaxcheck und Geometrie-Tests per GitHub Actions
 
-## Installation
+## Installation auf maps.stadt-nexverse.de
 
-1. PHP 8.2+ sowie den passenden PDO-Treiber (`pdo_mysql`, `pdo_pgsql` oder `pdo_sqlite`) installieren.
-2. Den Webserver-DocumentRoot auf das Projektverzeichnis richten; `index.php` verwenden.
-3. Die **Umgebungsvariablen** im Webserver/PHP-FPM/Docker-Prozess setzen:
+Die gesamte Konfiguration liegt jetzt **im WorldMap-Projekt unter `config/`**. Es wird **keine** Konfigurationsdatei im Elternverzeichnis benötigt.
 
-| Variable | Beispiel | Bedeutung |
-| --- | --- | --- |
-| `OGL_DB_DSN` | `mysql:host=127.0.0.1;port=3306;dbname=opensim;charset=utf8mb4` | PDO-Datenbankverbindung |
-| `OGL_DB_USER` | `opensim_reader` | Datenbankbenutzer mit SELECT-Rechten |
-| `OGL_DB_PASS` | *vertraulich* | Datenbankpasswort |
-| `OGL_CENTER_X` | `5000` | Kartenstart X in Regionskoordinaten |
-| `OGL_CENTER_Y` | `5000` | Kartenstart Y in Regionskoordinaten |
-| `OGL_COORD_UNIT` | `meters` | `meters` für OpenSimulator-Standard, `regions` für ältere Grids |
+Das richtige Verzeichnis ist:
 
-### Installation auf maps.stadt-nexverse.de (ohne PHP-FPM-Umgebungsvariablen)
-
-Der Fehler **„Die Datenbank ist nicht eingerichtet oder derzeit nicht erreichbar“** stammt im ersten Release vom fehlenden `OGL_DB_DSN` oder einer fehlgeschlagenen PDO-Abfrage.
-
-**Einfachster Weg auf klassischem Webhosting:** Lege die Konfiguration **außerhalb des öffentlich erreichbaren Webverzeichnisses** an. Angenommen das geklonte Repository selbst ist der DocumentRoot:
-
-```bash
-cd /pfad/zur/opengenesislinkworldmap
-cp config/worldmap-config.example.php ../worldmap-config.php
-chmod 600 ../worldmap-config.php
-nano ../worldmap-config.php
+```text
+/home/users/stadtnexverse/www/maps.stadt-nexverse.de/
+├── config/
+│   ├── .htaccess                    # Apache: direkten HTTP-Zugriff vollständig sperren
+│   ├── worldmap-config.example.php # Vorlage ohne echte Zugangsdaten
+│   └── worldmap-config.php         # individuelle Datenbank-Zugangsdaten, Git-ignoriert
+├── api/
+├── assets/
+├── lib/
+└── index.php
 ```
 
-Dort die echten, nur leseberechtigten Datenbankwerte von OpenGenesisLINK/ROBUST eintragen:
+### Konfigurationsdatei innerhalb von /config anlegen
+
+```bash
+cd /home/users/stadtnexverse/www/maps.stadt-nexverse.de
+git pull --ff-only origin main
+
+# Eine bereits bestehende lokale Datei wird NICHT überschrieben.
+if [ ! -f config/worldmap-config.php ]; then
+    cp config/worldmap-config.example.php config/worldmap-config.php
+fi
+
+nano config/worldmap-config.php
+```
+
+Danach die **GridService/ROBUST-Datenbank** eintragen (nicht die separate Simulator-Datenbank, sofern beide getrennt sind):
 
 ```php
 <?php
+if (!defined('OGL_WORLDMAP_INTERNAL')) {
+    http_response_code(404);
+    exit;
+}
 return [
-    'OGL_DB_DSN' => 'mysql:host=DEIN_PRIVATER_DB_HOST;port=3306;dbname=opensim;charset=utf8mb4',
+    'OGL_DB_DSN' => 'mysql:host=ROBUST_DB_HOST;port=3306;dbname=opensim;charset=utf8mb4',
     'OGL_DB_USER' => 'opensim_reader',
     'OGL_DB_PASS' => 'DEIN_PASSWORT',
     'OGL_COORD_UNIT' => 'meters',
@@ -57,11 +65,34 @@ return [
 ];
 ```
 
-Wichtig: Das Beispiel zeigt **Platzhalter**, keine echten Zugangsdaten. Der Dateipfad ist genau `<DocumentRoot>/../worldmap-config.php`; alternativ kann `OGL_CONFIG_PATH` auf eine andere absolute, geschützte Datei zeigen. `OGL_DB_DSN` aus der Prozessumgebung hat Vorrang. Die Tabelle `regions` muss aus der OpenSimulator/OpenGenesisLINK **GridService-Datenbank**, nicht aus der Simulator-Prim-Datenbank, stammen.
+Die Zugangsdaten im Beispiel sind Platzhalter. PHP muss `config/worldmap-config.php` lesen können; die Datei soll nicht weltlesbar sein. Beispiel bei passender Eigentümer-/Gruppenzuordnung: `chmod 640 config/worldmap-config.php`. Prüfe PHP-FPM-Webserver-Benutzer und Verzeichnisrechte, falls die Datei nicht gelesen werden kann.
 
-**Sicherheitsregel:** Wenn die WorldMap auf einem anderen Host läuft als ROBUST/MySQL, nutze eine interne IP/VPN-Verbindung mit gezielter Firewallfreigabe, statt MySQL pauschal öffentlich erreichbar zu machen.
+Die Datei ist durch `.gitignore` vom Repository ausgeschlossen. Deshalb bleibt sie bei zukünftigen `git pull`-Updates erhalten und **darf nicht eingecheckt** werden.
 
-Zur Diagnose nach der Konfiguration:
+### Web-Zugriff auf /config sperren
+
+**Apache 2.4:** `config/.htaccess` wird im Repository mitgeliefert und enthält `Require all denied`. Dazu müssen `.htaccess`-Regeln auf dem Hosting-System aktiviert sein (`AllowOverride`). Für andere Webserver gilt das nicht automatisch.
+
+**Nginx:** Die folgende Regel muss **innerhalb des aktiven `server { ... }`-Blocks** von `maps.stadt-nexverse.de` vor Regex-PHP-Locations wirksam sein; danach Konfiguration testen und Nginx neu laden:
+
+```nginx
+location ^~ /config/ {
+    deny all;
+}
+```
+
+Ist die Serverkonfiguration nicht entsprechend abgesichert, darf die Anwendung mit echten Zugangsdaten nicht öffentlich betrieben werden. Zusätzlich sollte bei Nginx der PHP-Handler korrekt eingerichtet sein; der direkt aufgerufene Konfigurations-PHP-Dateiname muss trotz Schutzregel über HTTP grundsätzlich **403 oder 404** liefern.
+
+HTTP-Schutz kontrollieren:
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' \
+  https://maps.stadt-nexverse.de/config/worldmap-config.php
+```
+
+Erwartet wird `403` oder `404`, **nicht** `200`.
+
+### Datenbankverbindung prüfen
 
 ```bash
 curl -i https://maps.stadt-nexverse.de/api/health.php
@@ -69,9 +100,13 @@ curl -i 'https://maps.stadt-nexverse.de/api/regions.php?west=4990&east=5010&sout
 php -m | grep -Ei 'PDO|pdo_mysql|pdo_pgsql|pdo_sqlite'
 ```
 
-`/api/health.php` antwortet bei erfolgreicher Verbindung **200 + `{"status":"ok","code":"ready","configured":true}`**. Andernfalls kommt 503 mit einem der sicheren Codes `configuration_required`, `pdo_driver_missing`, `connection_failed` oder `schema_error`. Der PHP-Error-Log enthält die konkrete technische Fehlermeldung; das öffentliche API gibt keine Passwörter oder SQL-Details preis.
+Die Health-API antwortet bei erfolgreicher Verbindung mit HTTP 200 und `{"status":"ok","code":"ready","configured":true}`. Andernfalls folgen HTTP 503 und die Codes `configuration_required`, `pdo_driver_missing`, `connection_failed` oder `schema_error`. Der PHP-Error-Log enthält technische Details, die öffentliche API keine Passwort- oder SQL-Details.
 
-**Keine Datenbank-Zugangsdaten committen.** Die Datei `.env.example` dokumentiert Werte, wird von der Anwendung aber **nicht automatisch eingelesen**. Die Variablen müssen über Webserver oder Prozessumgebung gesetzt werden.
+Wenn die WorldMap auf einem anderen Server als ROBUST/MySQL läuft, sollte die Datenbank über ein internes Netz oder VPN verbunden werden, nicht öffentlich mit beliebig offenem MySQL-Port.
+
+### Optional: Umgebungsvariablen statt lokaler Datei
+
+PHP 8.2+ mit passendem PDO-Treiber (`pdo_mysql`, `pdo_pgsql` oder `pdo_sqlite`) ist Voraussetzung. `OGL_DB_DSN`, `OGL_DB_USER`, `OGL_DB_PASS`, `OGL_COORD_UNIT`, `OGL_CENTER_X` und `OGL_CENTER_Y` können alternativ als PHP-Prozessumgebungsvariablen gesetzt werden; gesetzte Umgebungsvariablen haben Vorrang vor der Datei. `OGL_CONFIG_PATH` wird bewusst nicht mehr verwendet: der dateibasierte Pfad bleibt immer `<Projektverzeichnis>/config/worldmap-config.php`.
 
 MySQL/MariaDB: Beispiel für einen beschränkten Lesebenutzer:
 
@@ -107,6 +142,7 @@ Ohne Datenbank bleibt die Karte als Oberfläche erreichbar und zeigt eine Verbin
 - `assets/` – Canvas-Karte, Suchfeld, Styling
 - `api/regions.php` – schreibgeschützte Regions-API
 - `lib/map.php` – DB-Zugriff und Koordinatenlogik
+- `config/` – lokale (Git-ignorierte) Datenbankkonfiguration und Web-Zugriffsschutz
 - `tests/` – Testskripte
 - `legacy/` – Hinweise zum ursprünglichen Projekt
 

@@ -4,19 +4,26 @@ declare(strict_types=1);
 
 final class MapConfigurationException extends RuntimeException {}
 
+function mapConfigPath(): string
+{
+    return dirname(__DIR__) . '/config/worldmap-config.php';
+}
+
 function mapLocalSettings(): array
 {
     static $settings = null;
     if ($settings !== null) {
         return $settings;
     }
-    // Default config is strictly outside the web document root.
-    $path = getenv('OGL_CONFIG_PATH');
-    if (!is_string($path) || $path === '') {
-        $path = dirname(__DIR__, 2) . '/worldmap-config.php';
-    }
+    // Keep all WorldMap configuration inside this project's /config directory.
+    // The webserver MUST deny HTTP access to /config (see config/.htaccess / Nginx docs).
+    $path = mapConfigPath();
     if (!is_file($path)) {
         return $settings = [];
+    }
+    // Template files may explicitly reject direct browser requests.
+    if (!defined('OGL_WORLDMAP_INTERNAL')) {
+        define('OGL_WORLDMAP_INTERNAL', true);
     }
     $loaded = require $path;
     if (!is_array($loaded)) {
@@ -44,7 +51,7 @@ function mapPublicError(Throwable $error): array
         $code = 'schema_error';
     }
     $messages = [
-        'configuration_required' => 'Datenbank nicht konfiguriert. Bitte die Serverkonfiguration der WorldMap einrichten.',
+        'configuration_required' => 'Datenbank nicht konfiguriert. Bitte config/worldmap-config.php in der WorldMap einrichten.',
         'invalid_configuration' => 'Die WorldMap-Konfigurationsdatei ist ungültig.',
         'pdo_driver_missing' => 'Der erforderliche PHP-PDO-Datenbanktreiber ist nicht installiert.',
         'connection_failed' => 'Datenbankverbindung fehlgeschlagen. Host, Port, Berechtigungen und Zugangsdaten prüfen.',
