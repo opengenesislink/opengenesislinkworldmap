@@ -75,7 +75,11 @@
       Object.entries({ west, east, south, north }).forEach(([key, value]) => url.searchParams.set(key, value));
       const response = await fetch(url, {signal: controller.signal});
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Regionsdaten nicht verfügbar');
+      if (!response.ok) {
+        const error = new Error(data.error || 'Regionsdaten nicht verfügbar');
+        error.code = data.code || 'data_source_error';
+        throw error;
+      }
       if (serial !== state.generation) return;
       state.regions = data.regions || [];
       $('regionCount').textContent = state.regions.length.toLocaleString('de-DE');
@@ -84,9 +88,12 @@
       message('');draw();
     } catch (error) {
       if (error.name === 'AbortError') return;
-      $('connection').textContent = 'Datenquelle nicht erreichbar';$('connection').className = 'live offline';
+      $('connection').textContent = error.code === 'configuration_required' ? 'Datenbank nicht konfiguriert' : 'Datenquelle nicht erreichbar';
+      $('connection').className = 'live offline';
       $('mapStatus').textContent = 'Keine Regionsdaten';
-      message('Die Datenbank ist nicht eingerichtet oder derzeit nicht erreichbar. Die Karte bleibt bedienbar.');
+      message(error.message && error.message !== 'Failed to fetch'
+        ? error.message
+        : 'Regions-API nicht erreichbar. Bitte PHP, Webserver und API-Pfad prüfen.');
     }
   }
   function scheduleLoad() { clearTimeout(pending);draw();pending = setTimeout(load, 180); }
