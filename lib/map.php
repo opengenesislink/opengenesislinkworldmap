@@ -84,8 +84,79 @@ function mapGeometry(array $row, string $unit = 'meters'): array
         'sizeX' => $sizeX,
         'sizeY' => $sizeY,
         'serverURI' => (string) ($row['serverURI'] ?? ''),
+        'ownerId' => mapOwnerId((string) ($row['map_owner_uuid'] ?? '')),
+        'ownerName' => null,
     ];
 }
+/**
+ * OpenSimulator stores the grid-level region owner in regions.owner_uuid.
+ * Some custom forks call the same field regionOwner. Older schemas can lack both.
+ */
+function mapOwnerColumnSql(PDO $db): string
+{
+    foreach (['owner_uuid', 'regionOwner'] as $column) {
+        try {
+            $db->query('SELECT ' . $column . ' FROM regions WHERE 1=0');
+            return ', ' . $column . ' AS map_owner_uuid';
+        } catch (PDOException $error) {
+            // Optional metadata must not break the map on older GridService schemas.
+        }
+    }
+    return '';
+}
+
+function mapOwnerId(string $value): ?string
+{
+    $value = trim($value);
+    if ($value === '' || strtolower($value) === '00000000-0000-0000-0000-000000000000') {
+        return null;
+    }
+    // Never return arbitrary DB values as an account identifier.
+    return preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iD', $value)
+        ? $value : null;
+}
+
+/**
+ * Resolve display names using the public name columns of UserAccounts.
+ * A read-only grid DB login can access regions only; owner UUIDs then remain visible
+ * but the name is explicitly unavailable. No e-mail or account secrets are read.
+ */
+function mapResolveOwners(PDO $db, array $regions): array
+{
+    $byOwner = [];
+    foreach ($regions as $i => $region) {
+        if ($region['ownerId'] !== null) {
+            $byOwner[$region['ownerId']][] = $i;
+        }
+    }
+    if ($byOwner === []) {
+        return $regions;
+    }
+    foreach (array_chunk(array_keys($byOwner), 200) as $ids) {
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        try {
+            $statement = $db->prepare(
+                'SELECT PrincipalID, FirstName, LastName FROM UserAccounts WHERE PrincipalID IN (' . $placeholders . ')'
+            );
+            $statement->execute($ids);
+            foreach ($statement->fetchAll() as $account) {
+                $id = (string) $account['PrincipalID'];
+                $name = trim((string) ($account['FirstName'] ?? '') . ' ' . (string) ($account['LastName'] ?? ''));
+                if ($name === '') {
+                    continue;
+                }
+                foreach ($byOwner[$id] ?? [] as $index) {
+                    $regions[$index]['ownerName'] = $name;
+                }
+            }
+        } catch (PDOException $error) {
+            // Optional UserAccounts table or SELECT grant unavailable; show UUID only.
+            return $regions;
+        }
+    }
+    return $regions;
+}
+
 function mapInteger(string $key, int $default, int $min = -1000000, int $max = 1000000): int
 {
     $raw = $_GET[$key] ?? null;
@@ -126,7 +197,8 @@ function mapFetchRegions(PDO $db, array $bounds, string $unit): array
     $heightExpression = $unit === 'regions'
         ? '(CASE WHEN sizeY > 0 THEN sizeY / 256.0 ELSE 1 END)'
         : '(CASE WHEN sizeY > 0 THEN sizeY ELSE 256 END)';
-    $sql = "SELECT uuid, regionName, locX, locY, sizeX, sizeY, serverURI
+    $ownerSql = mapOwnerColumnSql($db);
+    $sql = "SELECT uuid, regionName, locX, locY, sizeX, sizeY, serverURI $ownerSql
             FROM regions
             WHERE locX < :east AND locY < :north
               AND locX + $widthExpression > :west
@@ -142,14 +214,17 @@ function mapFetchRegions(PDO $db, array $bounds, string $unit): array
     if ($truncated) {
         $rows = array_slice($rows, 0, 2000);
     }
-    return ['regions' => array_map(static fn (array $row): array => mapGeometry($row, $unit), $rows), 'truncated' => $truncated];
+    $regions = array_map(static fn (array $row): array => mapGeometry($row, $unit), $rows);
+    return ['regions' => mapResolveOwners($db, $regions), 'truncated' => $truncated];
 }
 function mapSearch(PDO $db, string $term, string $unit): array
 {
     $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], function_exists('mb_strtolower') ? mb_strtolower($term) : strtolower($term));
-    $statement = $db->prepare("SELECT uuid, regionName, locX, locY, sizeX, sizeY, serverURI
+    $ownerSql = mapOwnerColumnSql($db);
+    $statement = $db->prepare("SELECT uuid, regionName, locX, locY, sizeX, sizeY, serverURI $ownerSql
         FROM regions WHERE LOWER(regionName) LIKE :name ESCAPE '!'
         ORDER BY regionName LIMIT 30");
     $statement->execute(['name' => '%' . $escaped . '%']);
-    return array_map(static fn (array $row): array => mapGeometry($row, $unit), $statement->fetchAll());
+    $regions = array_map(static fn (array $row): array => mapGeometry($row, $unit), $statement->fetchAll());
+    return mapResolveOwners($db, $regions);
 }
