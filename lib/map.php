@@ -2,11 +2,61 @@
 /** SPDX-License-Identifier: MPL-2.0 */
 declare(strict_types=1);
 
+final class MapConfigurationException extends RuntimeException {}
+
+function mapLocalSettings(): array
+{
+    static $settings = null;
+    if ($settings !== null) {
+        return $settings;
+    }
+    // Default config is strictly outside the web document root.
+    $path = getenv('OGL_CONFIG_PATH');
+    if (!is_string($path) || $path === '') {
+        $path = dirname(__DIR__, 2) . '/worldmap-config.php';
+    }
+    if (!is_file($path)) {
+        return $settings = [];
+    }
+    $loaded = require $path;
+    if (!is_array($loaded)) {
+        throw new MapConfigurationException('invalid_configuration');
+    }
+    return $settings = $loaded;
+}
+
 function mapSetting(string $key, string $default = ''): string
 {
     $value = getenv($key);
-    return $value === false || $value === '' ? $default : $value;
+    if (is_string($value) && $value !== '') {
+        return $value;
+    }
+    $fileSettings = mapLocalSettings();
+    return isset($fileSettings[$key]) ? (string) $fileSettings[$key] : $default;
 }
+
+function mapPublicError(Throwable $error): array
+{
+    $code = 'data_source_error';
+    if ($error instanceof MapConfigurationException) {
+        $code = $error->getMessage();
+    } elseif ($error instanceof PDOException && preg_match('/^(42|HY000)/', (string) $error->getCode())) {
+        $code = 'schema_error';
+    }
+    $messages = [
+        'configuration_required' => 'Datenbank nicht konfiguriert. Bitte die Serverkonfiguration der WorldMap einrichten.',
+        'invalid_configuration' => 'Die WorldMap-Konfigurationsdatei ist ungültig.',
+        'pdo_driver_missing' => 'Der erforderliche PHP-PDO-Datenbanktreiber ist nicht installiert.',
+        'connection_failed' => 'Datenbankverbindung fehlgeschlagen. Host, Port, Berechtigungen und Zugangsdaten prüfen.',
+        'schema_error' => 'Datenbank erreichbar, aber die Regions-Tabelle oder erforderliche Spalten sind nicht verfügbar.',
+        'data_source_error' => 'Die Regionsdaten sind derzeit nicht verfügbar.',
+    ];
+    if (!array_key_exists($code, $messages)) {
+        $code = 'data_source_error';
+    }
+    return ['code' => $code, 'error' => $messages[$code]];
+}
+
 function mapCoordinateUnit(): string
 {
     $unit = strtolower(mapSetting('OGL_COORD_UNIT', 'meters'));
@@ -41,15 +91,24 @@ function mapDatabase(): PDO
 {
     $dsn = mapSetting('OGL_DB_DSN');
     if ($dsn === '') {
-        throw new RuntimeException('Database connection is not configured');
+        throw new MapConfigurationException('configuration_required');
     }
-    return new PDO($dsn, mapSetting('OGL_DB_USER'), mapSetting('OGL_DB_PASS'), [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-        PDO::ATTR_TIMEOUT => 5,
-    ]);
+    $driver = strtolower((string) strstr($dsn, ':', true));
+    if (!in_array($driver, PDO::getAvailableDrivers(), true)) {
+        throw new MapConfigurationException('pdo_driver_missing');
+    }
+    try {
+        return new PDO($dsn, mapSetting('OGL_DB_USER'), mapSetting('OGL_DB_PASS'), [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 5,
+        ]);
+    } catch (PDOException $error) {
+        throw new MapConfigurationException('connection_failed', 0, $error);
+    }
 }
+
 function mapFetchRegions(PDO $db, array $bounds, string $unit): array
 {
     [$west, $east, $south, $north] = $bounds;
