@@ -11,7 +11,11 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
+          extensions: pdo_sqlite, sqlite3
       - name: Syntax check
         run: find . -name '*.php' -print0 | xargs -0 -n1 php -l
       - name: Geometry checks
-        run: php tests/geometry.php
+        run: |
+          php tests/geometry.php
+          php tests/configuration.php
+          php tests/database.php
