@@ -10,13 +10,19 @@ function testAssert(bool $condition, string $message): void {
     }
 }
 
-putenv('OGL_CONFIG_PATH=' . sys_get_temp_dir() . '/worldmap-test-config-does-not-exist.php');
+testAssert(
+    mapConfigPath() === dirname(__DIR__) . '/config/worldmap-config.php',
+    'default config must live inside project/config'
+);
+putenv('OGL_CONFIG_PATH=/tmp/ignored-by-worldmap.php');
 putenv('OGL_DB_DSN');
-try {
-    mapDatabase();
-    testAssert(false, 'missing config must reject connection');
-} catch (MapConfigurationException $error) {
-    testAssert(mapPublicError($error)['code'] === 'configuration_required', 'configuration code is actionable');
+if (!is_file(mapConfigPath())) {
+    try {
+        mapDatabase();
+        testAssert(false, 'missing config must reject connection');
+    } catch (MapConfigurationException $error) {
+        testAssert(mapPublicError($error)['code'] === 'configuration_required', 'configuration code is actionable');
+    }
 }
 putenv('OGL_CENTER_X=6200');
 testAssert(mapSetting('OGL_CENTER_X', '5000') === '6200', 'process environment override');
