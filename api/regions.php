@@ -30,7 +30,7 @@ try {
     }
     echo json_encode($result + ['coordinateUnit' => 'regions'], JSON_INVALID_UTF8_SUBSTITUTE | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
 } catch (Throwable $error) {
-    error_log('WorldMap API: ' . $error->getMessage());
+    error_log('WorldMap API: ' . $error->getMessage() . ($error->getPrevious() ? ' (' . $error->getPrevious()->getMessage() . ')' : ''));
     http_response_code(503);
-    echo json_encode(['error' => 'Regionsdaten momentan nicht verfuegbar']);
+    echo json_encode(mapPublicError($error), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 }

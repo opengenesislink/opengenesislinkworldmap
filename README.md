@@ -10,6 +10,8 @@ Eigenständiger, interaktiver Regionsatlas für **OpenGenesisLINK** und **OpenSi
 - Schreibgeschützte JSON-API mit begrenzten Bounding-Box-Abfragen
 - MariaDB/MySQL, PostgreSQL oder SQLite per PDO; Datenbanktabelle `regions`
 - PHP 8.2+ ohne JavaScript-Framework und ohne Composer-Abhängigkeiten
+- Dein transparentes OpenGenesisLINK-WorldMap-Logo, responsiv im Header
+- Diagnose-Endpunkt `/api/health.php` mit sicheren Fehlercodes
 - Koordinatenumrechnung Meter ↔ Grid-Regionen per Einstellung
 - Automatischer PHP-Syntaxcheck und Geometrie-Tests per GitHub Actions
 
@@ -27,6 +29,47 @@ Eigenständiger, interaktiver Regionsatlas für **OpenGenesisLINK** und **OpenSi
 | `OGL_CENTER_X` | `5000` | Kartenstart X in Regionskoordinaten |
 | `OGL_CENTER_Y` | `5000` | Kartenstart Y in Regionskoordinaten |
 | `OGL_COORD_UNIT` | `meters` | `meters` für OpenSimulator-Standard, `regions` für ältere Grids |
+
+### Installation auf maps.stadt-nexverse.de (ohne PHP-FPM-Umgebungsvariablen)
+
+Der Fehler **„Die Datenbank ist nicht eingerichtet oder derzeit nicht erreichbar“** stammt im ersten Release vom fehlenden `OGL_DB_DSN` oder einer fehlgeschlagenen PDO-Abfrage.
+
+**Einfachster Weg auf klassischem Webhosting:** Lege die Konfiguration **außerhalb des öffentlich erreichbaren Webverzeichnisses** an. Angenommen das geklonte Repository selbst ist der DocumentRoot:
+
+```bash
+cd /pfad/zur/opengenesislinkworldmap
+cp config/worldmap-config.example.php ../worldmap-config.php
+chmod 600 ../worldmap-config.php
+nano ../worldmap-config.php
+```
+
+Dort die echten, nur leseberechtigten Datenbankwerte von OpenGenesisLINK/ROBUST eintragen:
+
+```php
+<?php
+return [
+    'OGL_DB_DSN' => 'mysql:host=DEIN_PRIVATER_DB_HOST;port=3306;dbname=opensim;charset=utf8mb4',
+    'OGL_DB_USER' => 'opensim_reader',
+    'OGL_DB_PASS' => 'DEIN_PASSWORT',
+    'OGL_COORD_UNIT' => 'meters',
+    'OGL_CENTER_X' => '5000',
+    'OGL_CENTER_Y' => '5000',
+];
+```
+
+Wichtig: Das Beispiel zeigt **Platzhalter**, keine echten Zugangsdaten. Der Dateipfad ist genau `<DocumentRoot>/../worldmap-config.php`; alternativ kann `OGL_CONFIG_PATH` auf eine andere absolute, geschützte Datei zeigen. `OGL_DB_DSN` aus der Prozessumgebung hat Vorrang. Die Tabelle `regions` muss aus der OpenSimulator/OpenGenesisLINK **GridService-Datenbank**, nicht aus der Simulator-Prim-Datenbank, stammen.
+
+**Sicherheitsregel:** Wenn die WorldMap auf einem anderen Host läuft als ROBUST/MySQL, nutze eine interne IP/VPN-Verbindung mit gezielter Firewallfreigabe, statt MySQL pauschal öffentlich erreichbar zu machen.
+
+Zur Diagnose nach der Konfiguration:
+
+```bash
+curl -i https://maps.stadt-nexverse.de/api/health.php
+curl -i 'https://maps.stadt-nexverse.de/api/regions.php?west=4990&east=5010&south=4990&north=5010'
+php -m | grep -Ei 'PDO|pdo_mysql|pdo_pgsql|pdo_sqlite'
+```
+
+`/api/health.php` antwortet bei erfolgreicher Verbindung **200 + `{"status":"ok","code":"ready","configured":true}`**. Andernfalls kommt 503 mit einem der sicheren Codes `configuration_required`, `pdo_driver_missing`, `connection_failed` oder `schema_error`. Der PHP-Error-Log enthält die konkrete technische Fehlermeldung; das öffentliche API gibt keine Passwörter oder SQL-Details preis.
 
 **Keine Datenbank-Zugangsdaten committen.** Die Datei `.env.example` dokumentiert Werte, wird von der Anwendung aber **nicht automatisch eingelesen**. Die Variablen müssen über Webserver oder Prozessumgebung gesetzt werden.
 
@@ -51,6 +94,8 @@ Die Bounding-Box ist auf höchstens 256 × 256 Zellen begrenzt. Bei mehr als 200
 ```bash
 find . -name '*.php' -print0 | xargs -0 -n1 php -l
 php tests/geometry.php
+php tests/configuration.php
+php tests/database.php
 php -S 127.0.0.1:8080
 ```
 
