@@ -15,7 +15,7 @@ $settings = ['centerX' => $centerX !== false ? $centerX : 5000, 'centerY' => $ce
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#071326">
 <title>OpenGenesisLINK WorldMap</title>
-<link rel="stylesheet" href="./assets/style.css?v=2">
+<link rel="stylesheet" href="./assets/style.css?v=3">
 </head>
 <body>
 <div class="app">
@@ -31,13 +31,13 @@ $settings = ['centerX' => $centerX !== false ? $centerX : 5000, 'centerY' => $ce
       <section class="panel details"><h2>Regionsdetails</h2><div id="regionDetails" class="detailPlaceholder">Region auf der Karte auswählen.</div></section>
       <footer class="sidefoot"><span>OpenGenesisLINK / WorldMap</span><span>Generation 1</span></footer>
     </aside>
-    <div class="maparea"><div class="maptop"><div><span class="eyebrow">WORLD EXPLORER</span><div class="maptitle">Regionen <span id="regionCount">—</span></div></div><div class="maphelp">Ziehen: Verschieben <span>·</span> Mausrad: Zoomen <span>·</span> Klick: Details</div></div>
-      <div class="mapframe" id="mapFrame"><canvas id="worldMap" aria-label="Interaktive Weltkarte der Regionen" role="img"></canvas><div id="mapMessage" class="mapmessage" role="status"></div><div class="mapcontrols"><button id="zoomIn" aria-label="Vergrößern">+</button><button id="zoomOut" aria-label="Verkleinern">−</button><button id="resetMap" aria-label="Zentrieren">◎</button></div><div class="mapcoords" id="mapCoords">X 5000 · Y 5000</div></div>
-      <div class="legend"><span><i class="swatch occupied"></i> Standardregion</span><span><i class="swatch variable"></i> Variable Region</span><span><i class="swatch free"></i> Freie Position</span><span class="legendHint" id="mapStatus">Regionsdaten werden geladen …</span></div>
+    <div class="maparea"><div class="maptop"><div><span class="eyebrow">WORLD EXPLORER</span><div class="maptitle">Regionen <span id="regionCount">—</span></div></div><div class="maphelp">Ziehen: Verschieben <span>·</span> Mausrad: Zoomen <span>·</span> Klick: Koordinaten &amp; Details</div></div>
+      <div class="mapframe" id="mapFrame"><canvas id="worldMap" aria-label="Interaktive Weltkarte – Grün ist frei, Rot ist belegt. Klick für Koordinaten und Details." role="img" tabindex="0"></canvas><section id="mapPopup" class="map-popup" role="dialog" aria-label="Kartenfeld-Informationen" aria-modal="false" hidden><button id="popupClose" type="button" aria-label="Infofenster schließen">×</button><div id="popupBody"></div></section><div id="mapMessage" class="mapmessage" role="status"></div><div class="mapcontrols"><button id="zoomIn" aria-label="Vergrößern">+</button><button id="zoomOut" aria-label="Verkleinern">−</button><button id="resetMap" aria-label="Zentrieren">◎</button></div><div class="mapcoords" id="mapCoords">X 5000 · Y 5000</div></div>
+      <div class="legend"><span><i class="swatch occupied"></i> Belegt</span><span><i class="swatch free"></i> Frei</span><span><i class="swatch variable"></i> VarRegion (belegt)</span><span class="legendHint" id="mapStatus">Regionsdaten werden geladen …</span></div>
     </div>
   </main>
 </div>
 <script>window.OGL_WORLDMAP = <?= json_encode($settings, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_HEX_APOS) ?>;</script>
-<script src="./assets/app.js?v=2" defer></script>
+<script src="./assets/app.js?v=3" defer></script>
 </body>
 </html>
