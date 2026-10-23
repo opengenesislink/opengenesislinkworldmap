@@ -19,3 +19,6 @@ jobs:
           php tests/geometry.php
           php tests/configuration.php
           php tests/database.php
+          php tests/owners.php
+      - name: JavaScript syntax check
+        run: node --check assets/app.js

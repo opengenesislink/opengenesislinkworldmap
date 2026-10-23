@@ -39,3 +39,30 @@
   .topright{gap:8px;font-size:10px;text-align:right}
   .workspace{min-height:calc(100vh - 85px)}
 }
+
+/* Interactive land occupancy map – only data-backed free tiles are green. */
+.legend .occupied{background:#bb3544;border-color:#f27983}
+.legend .variable{background:#a83240;border:2px dashed #ffc5cb}
+.legend .free{background:#166d43;border-color:#56d48b}
+.map-popup[hidden]{display:none}
+.map-popup{
+  position:absolute;z-index:10;width:min(315px,calc(100% - 20px));max-height:min(410px,calc(100% - 20px));
+  overflow:auto;background:#0d1a2df5;border:1px solid #456487;border-radius:12px;
+  padding:17px 17px 15px;box-shadow:0 14px 55px #000a,0 0 0 1px #183550;
+  color:#e6f2ff;backdrop-filter:blur(12px)
+}
+.map-popup #popupClose{position:absolute;right:8px;top:8px;width:30px;height:30px;border:1px solid #304a66;
+  border-radius:7px;background:#142a45;color:#c9e0fc;font-size:21px;line-height:1}
+.map-popup #popupClose:hover{background:#234768}
+.map-popup h3{font-size:15px;line-height:1.3;letter-spacing:-.02em;margin:10px 35px 10px 0}
+.popup-status{display:inline-flex;font-size:10px;letter-spacing:.07em;text-transform:uppercase;font-weight:800;
+  padding:5px 9px;border:1px solid;border-radius:99px}
+.popup-status.status-free{background:#123f30;color:#9df0bf;border-color:#438d68}
+.popup-status.status-occupied{background:#4c2633;color:#ffb8c1;border-color:#a84d5b}
+.popup-status.status-unknown{background:#364053;color:#c3d0e1;border-color:#6a7c94}
+.popup-info{font-size:11px;color:#849dbd;line-height:1.55;margin-top:10px}
+.map-popup dl{display:grid;grid-template-columns:90px minmax(0,1fr);gap:9px 10px;margin:14px 0 0;font-size:11px}
+.map-popup dt{color:#89a4c3}.map-popup dd{margin:0;color:#e3f0ff;overflow-wrap:anywhere}
+.map-popup dd.coord{font-family:ui-monospace,Consolas,monospace;font-weight:800;color:#bdedce}
+.detailPlaceholder .status-occupied{color:#ffb8c1}.detailPlaceholder .status-free{color:#a0e8be}
+@media(max-width:760px){.map-popup{max-height:330px;padding:13px 14px}.map-popup dl{grid-template-columns:80px minmax(0,1fr)}}
